@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: readonly-sa
+  namespace: dso202-assignment-01apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: readonly-sa
+  namespace: dso202-assignment-01
