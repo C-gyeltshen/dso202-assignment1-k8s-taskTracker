@@ -14,33 +14,7 @@ This report documents the full process of deploying the three-tier Task Tracker 
 
 ## Stage 1 — Creating the Cluster with `kind`
 
-```
-                     host machine (one laptop)
-   ┌────────────────────────────────────────────────────────────-───┐
-   │  Docker                                                        │
-   │                                                                │
-   │   ┌───────────────────────┐                                    │
-   │   │ container:            │  Kubernetes Node object name:      │
-   │   │ dso202-control-plane  │  control-plane                     │
-   │   │                       │  runs kube-apiserver, etcd,        │
-   │   │                       │  kube-scheduler,                   │
-   │   │                       │  kube-controller-manager,          │
-   │   │                       │  kubelet, kube-proxy               │
-   │   └───────────────────────┘                                    │
-   │                                                                │
-   │   ┌───────────────────────┐   ┌───────────────────────┐        │
-   │   │ container:            │   │ container:            │        │
-   │   │ dso202-worker         │   │ dso202-worker2        │        │
-   │   │ Node object name:     │   │ Node object name:     │        │
-   │   │ worker-node-1         │   │ worker-node-2         │        │
-   │   │ runs kubelet,         │   │ runs kubelet,         │        │
-   │   │ kube-proxy,           │   │ kube-proxy,           │        │
-   │   │ application Pods      │   │ application Pods      │        │
-   │   └───────────────────────┘   └───────────────────────┘        │
-   │                                                                │
-   │   host port 30080  ──►  control-plane container port 30080     │
-   └───────────────────────────────────────────────────────────────-┘
-```
+![59](../evidence/59.png)
 
 ### Step 1 — Write the cluster config
 
