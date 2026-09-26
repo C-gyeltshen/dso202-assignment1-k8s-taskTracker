@@ -14,7 +14,7 @@ This report documents the full process of deploying the three-tier Task Tracker 
 
 ## Stage 1 — Creating the Cluster with `kind`
 
-![59](../evidence/59.png)
+![59](../evidence/assignment1/59.png)
 
 ### Step 1 — Write the cluster config
 
@@ -24,7 +24,7 @@ touch kind-cluster.yaml
 ```
 *(config content taken from the Practical 1 manifest listing — see `cluster/kind-cluster.yaml`)*
 
-![Cluster config file](../evidence/2.png)
+![Cluster config file](../evidence/assignment1/2.png)
 
 ### Step 2 — Create the cluster
 
@@ -34,8 +34,8 @@ kind create cluster --config cluster/kind-cluster.yaml
 
 `--config` points `kind` at the file describing the desired node topology and port mappings; `kind create cluster` builds the cluster accordingly.
 
-![Cluster creation output](../evidence/3.png)
-![Cluster creation output continued](../evidence/4.png)
+![Cluster creation output](../evidence/assignment1/3.png)
+![Cluster creation output continued](../evidence/assignment1/4.png)
 
 ### Step 3 — Confirm the cluster and list its nodes
 
@@ -44,7 +44,7 @@ kind get clusters
 kind get nodes --name <cluster-name>
 ```
 
-![Cluster and node listing](../evidence/5.png)
+![Cluster and node listing](../evidence/assignment1/5.png)
 
 ### Step 4 — Inspect the cluster
 
@@ -53,7 +53,7 @@ kind export kubeconfig --name <cluster-name>   # if needed
 kubectl cluster-info
 ```
 
-![Cluster info output](../evidence/6.png)
+![Cluster info output](../evidence/assignment1/6.png)
 
 ### Step 5 — List all nodes
 
@@ -61,7 +61,7 @@ kubectl cluster-info
 kubectl get nodes -o wide
 ```
 
-![Node listing](../evidence/7.png)
+![Node listing](../evidence/assignment1/7.png)
 
 Three nodes are present: `control-plane`, `worker-node-1`, `worker-node-2`.
 
@@ -71,7 +71,7 @@ Three nodes are present: `control-plane`, `worker-node-1`, `worker-node-2`.
 kubectl get namespaces
 ```
 
-![Namespace listing](../evidence/8.png)
+![Namespace listing](../evidence/assignment1/8.png)
 
 ---
 
@@ -90,7 +90,7 @@ All three application tiers, and every supporting object, live inside `dso202-as
 - **ConfigMaps & Secrets** — Non-sensitive configuration (API URLs, ports) in a ConfigMap; sensitive values (passwords, credentials) in a Secret.
 - **PersistentVolumeClaims** — Used by the database to request persistent storage so data survives container restarts.
 
-![Namespace scope diagram/notes](../evidence/9.png)
+![Namespace scope diagram/notes](../evidence/assignment1/9.png)
 
 ### Creating the Namespace
 
@@ -100,14 +100,14 @@ touch namespace.yaml
 # define the namespace object in namespace.yaml
 ```
 
-![namespace.yaml creation](../evidence/10.png)
-![namespace.yaml content](../evidence/11.png)
+![namespace.yaml creation](../evidence/assignment1/10.png)
+![namespace.yaml content](../evidence/assignment1/11.png)
 
 ```bash
 kubectl apply -f common-manifests/namespace.yaml
 ```
 
-![Namespace applied](../evidence/12.png)
+![Namespace applied](../evidence/assignment1/12.png)
 
 **Verify:**
 
@@ -116,7 +116,7 @@ kubectl get namespaces
 kubectl describe namespace dso202-assignment-01
 ```
 
-![Namespace verification](../evidence/13.png)
+![Namespace verification](../evidence/assignment1/13.png)
 
 ### About Namespaces
 
@@ -124,7 +124,7 @@ A namespace is a logical partition — a virtual cluster inside a physical clust
 
 **Where does a namespace live — inside or outside a node?** Neither. Nodes and namespaces are both cluster-scoped resources, but namespaces are not tied to any specific node. They provide a way to organize and manage resources across the entire cluster, regardless of which node the underlying Pods are scheduled to.
 
-![Namespace scope clarification](../evidence/14.png)
+![Namespace scope clarification](../evidence/assignment1/14.png)
 
 ### What Happens on the Control Plane for Every Pod
 
@@ -194,7 +194,7 @@ Typical ConfigMap contents include:
 cd common-manifests
 touch configmap.yaml
 ```
-![configmap.yaml creation](../evidence/15.png)
+![configmap.yaml creation](../evidence/assignment1/15.png)
 
 #### Step 2 — Apply and verify
 
@@ -203,9 +203,9 @@ kubectl apply -f configmap.yaml -n dso202-assignment-01
 kubectl get configmap -n dso202-assignment-01
 kubectl get configmap app-config -n dso202-assignment-01 -o yaml
 ```
-![ConfigMap applied](../evidence/16.png)
-![ConfigMap listing](../evidence/17.png)
-![ConfigMap full output](../evidence/18.png)
+![ConfigMap applied](../evidence/assignment1/16.png)
+![ConfigMap listing](../evidence/assignment1/17.png)
+![ConfigMap full output](../evidence/assignment1/18.png)
 
 ### Secrets
 
@@ -230,7 +230,7 @@ Secrets are commonly used to:
 cd common-manifests
 touch secret.yaml
 ```
-![secret.yaml creation](../evidence/19.png)
+![secret.yaml creation](../evidence/assignment1/19.png)
 
 #### Step 2 — Apply and verify
 
@@ -239,9 +239,9 @@ kubectl apply -f common-manifests/secret.yaml -n dso202-assignment-01
 kubectl get secret app-secret -n dso202-assignment-01 -o yaml
 kubectl get secret -n dso202-assignment-01
 ```
-![Secret applied](../evidence/20.png)
-![Secret output](../evidence/21.png)
-![Secret listing](../evidence/22.png)
+![Secret applied](../evidence/assignment1/20.png)
+![Secret output](../evidence/assignment1/21.png)
+![Secret listing](../evidence/assignment1/22.png)
 
 ---
 
@@ -255,14 +255,14 @@ kubectl get secret -n dso202-assignment-01
 cd database
 touch pvc.yaml
 ```
-![pvc.yaml creation](../evidence/23.png)
+![pvc.yaml creation](../evidence/assignment1/23.png)
 
 #### Step 2 — Apply
 
 ```bash
 kubectl apply -f database/pvc.yaml
 ```
-![PVC applied](../evidence/24.png)
+![PVC applied](../evidence/assignment1/24.png)
 
 ### Deployment (PostgreSQL)
 
@@ -272,14 +272,14 @@ kubectl apply -f database/pvc.yaml
 cd database
 touch deployment.yaml
 ```
-![deployment.yaml creation](../evidence/25.png)
+![deployment.yaml creation](../evidence/assignment1/25.png)
 
 #### Step 2 — Apply
 
 ```bash
 kubectl apply -f database/deployment.yaml -n dso202-assignment-01
 ```
-![Deployment applied](../evidence/26.png)
+![Deployment applied](../evidence/assignment1/26.png)
 
 ### Headless Service
 
@@ -289,14 +289,14 @@ kubectl apply -f database/deployment.yaml -n dso202-assignment-01
 cd database
 touch service.yaml
 ```
-![service.yaml creation](../evidence/27.png)
+![service.yaml creation](../evidence/assignment1/27.png)
 
 #### Step 2 — Apply
 
 ```bash
 kubectl apply -f database/service.yaml -n dso202-assignment-01
 ```
-![Service applied](../evidence/28.png)
+![Service applied](../evidence/assignment1/28.png)
 
 ### Verification
 
@@ -305,7 +305,7 @@ kubectl get pvc -n dso202-assignment-01
 kubectl get pods -n dso202-assignment-01 -l tier=database
 kubectl get svc -n dso202-assignment-01
 ```
-![Database tier verification](../evidence/29.png)
+![Database tier verification](../evidence/assignment1/29.png)
 
 ### What This Achieves
 
@@ -340,14 +340,14 @@ Sequence: Deployment → ClusterIP Service → ConfigMap/Secret injection → ve
 cd backend
 touch deployment.yaml
 ```
-![backend deployment.yaml creation](../evidence/30.png)
+![backend deployment.yaml creation](../evidence/assignment1/30.png)
 
 #### Step 2 — Apply
 
 ```bash
 kubectl apply -f backend/deployment.yaml -n dso202-assignment-01
 ```
-![Backend deployment applied](../evidence/31.png)
+![Backend deployment applied](../evidence/assignment1/31.png)
 
 ### Service
 
@@ -357,14 +357,14 @@ kubectl apply -f backend/deployment.yaml -n dso202-assignment-01
 cd backend
 touch service.yaml
 ```
-![backend service.yaml creation](../evidence/32.png)
+![backend service.yaml creation](../evidence/assignment1/32.png)
 
 #### Step 2 — Apply
 
 ```bash
 kubectl apply -f backend/service.yaml -n dso202-assignment-01
 ```
-![Backend service applied](../evidence/33.png)
+![Backend service applied](../evidence/assignment1/33.png)
 
 ### Verification
 
@@ -373,7 +373,7 @@ kubectl get pods -n dso202-assignment-01 -l tier=backend
 kubectl get svc -n dso202-assignment-01
 kubectl logs -n dso202-assignment-01 -l tier=backend
 ```
-![Backend verification](../evidence/34.png)
+![Backend verification](../evidence/assignment1/34.png)
 
 ### Issue Encountered: `ENOTFOUND` on Startup
 
@@ -385,19 +385,19 @@ The backend logs initially showed repeated `[db] not reachable yet (ENOTFOUND), 
    ```bash
    kubectl get svc -n dso202-assignment-01
    ```
-   ![db-svc exists](../evidence/35.png)
+   ![db-svc exists](../evidence/assignment1/35.png)
    `db-svc` was present and correctly headless — so the Service object itself was fine. The problem was either no Pod behind it, or a label mismatch.
 
 2. Checked the Pods in the namespace:
    ```bash
    kubectl get pods -n dso202-assignment-01
    ```
-   ![Pod status showing InvalidImageName](../evidence/36.png)
+   ![Pod status showing InvalidImageName](../evidence/assignment1/36.png)
 
    Both the backend and database Deployments had a literal `<tag>` placeholder left in their `image:` field instead of the real version tag, producing `InvalidImageName`. The actual published tag for all three images (confirmed via Docker Hub) was `1.0`.
 
 3. After correcting the image tags to `sarojsanyasi/dso202-backend:1.0` and `sarojsanyasi/dso202-db:1.0` and reapplying, both Pods reached `Running`:
-   ![Pods running after fix](../evidence/37.png)
+   ![Pods running after fix](../evidence/assignment1/37.png)
 
 ### Confirming End-to-End Wiring
 
@@ -406,7 +406,7 @@ With both Pods running, the full chain — ConfigMap/Secret → backend env vars
 ```bash
 kubectl exec -n dso202-assignment-01 -it backend-deployment-7fd9b7dc94-d272b -- wget -qO- localhost:8080/api/status
 ```
-![Backend status check](../evidence/38.png)
+![Backend status check](../evidence/assignment1/38.png)
 
 Response: `{"status":"ok","db":"connected"}`
 
@@ -428,14 +428,14 @@ Response: `{"status":"ok","db":"connected"}`
 cd frontend
 touch deployment.yaml
 ```
-![frontend deployment.yaml creation](../evidence/39.png)
+![frontend deployment.yaml creation](../evidence/assignment1/39.png)
 
 #### Step 2 — Apply
 
 ```bash
 kubectl apply -f frontend/deployment.yaml -n dso202-assignment-01
 ```
-![Frontend deployment applied](../evidence/40.png)
+![Frontend deployment applied](../evidence/assignment1/40.png)
 
 This tier is simpler than the backend/database — the frontend only needs one environment variable, `BACKEND_URL`, already present in the ConfigMap as `http://backend-svc:8080`.
 
@@ -447,14 +447,14 @@ This tier is simpler than the backend/database — the frontend only needs one e
 cd frontend
 touch service.yaml
 ```
-![frontend service.yaml creation](../evidence/41.png)
+![frontend service.yaml creation](../evidence/assignment1/41.png)
 
 #### Step 2 — Apply
 
 ```bash
 kubectl apply -f frontend/service.yaml -n dso202-assignment-01
 ```
-![Frontend service applied](../evidence/42.png)
+![Frontend service applied](../evidence/assignment1/42.png)
 
 ### Verification
 
@@ -462,8 +462,8 @@ kubectl apply -f frontend/service.yaml -n dso202-assignment-01
 kubectl get pods -n dso202-assignment-01 -l tier=frontend
 kubectl get svc -n dso202-assignment-01
 ```
-![Frontend pod status](../evidence/43.png)
-![Frontend service status](../evidence/44.png)
+![Frontend pod status](../evidence/assignment1/43.png)
+![Frontend service status](../evidence/assignment1/44.png)
 
 The frontend was confirmed reachable at `http://localhost:30080`, since the `kind` cluster's `dso202-control-plane` container already had host port `30080` mapped to container port `30080`.
 
@@ -479,14 +479,14 @@ A ResourceQuota (caps total consumption across the namespace) and a LimitRange (
 cd common-manifests
 touch quota.yaml
 ```
-![quota.yaml creation](../evidence/45.png)
+![quota.yaml creation](../evidence/assignment1/45.png)
 
 ### Step 2 — Apply
 
 ```bash
 kubectl apply -f common-manifests/quota.yaml -n dso202-assignment-01
 ```
-![Quota applied](../evidence/46.png)
+![Quota applied](../evidence/assignment1/46.png)
 
 ### Verification
 
@@ -494,7 +494,7 @@ kubectl apply -f common-manifests/quota.yaml -n dso202-assignment-01
 kubectl describe resourcequota dso202-quota -n dso202-assignment-01
 kubectl describe limitrange dso202-limitrange -n dso202-assignment-01
 ```
-![Quota and LimitRange details](../evidence/47.png)
+![Quota and LimitRange details](../evidence/assignment1/47.png)
 
 See `README.md` for the full justification of the chosen values.
 
@@ -506,12 +506,12 @@ See `README.md` for the full justification of the chosen values.
 
 An initial attempt through the browser produced no clear error in the Network tab, so verification was performed via `curl` against a port-forwarded backend instead — an approach explicitly permitted by the assignment brief.
 
-![Browser attempt, no clear error](../evidence/48.png)
+![Browser attempt, no clear error](../evidence/assignment1/48.png)
 
 ```bash
 kubectl port-forward -n dso202-assignment-01 svc/backend-svc 8080:8080
 ```
-![Port-forward running](../evidence/49.png)
+![Port-forward running](../evidence/assignment1/49.png)
 
 ```bash
 curl -s -X POST localhost:8080/api/tasks -H "Content-Type: application/json" -d '{"title":"Test task","description":"CRUD check"}'
@@ -521,8 +521,8 @@ curl -s localhost:8080/api/tasks/1
 curl -s -X DELETE localhost:8080/api/tasks/1
 curl -s localhost:8080/api/tasks
 ```
-![CRUD sequence part 1](../evidence/50.png)
-![CRUD sequence part 2](../evidence/51.png)
+![CRUD sequence part 1](../evidence/assignment1/50.png)
+![CRUD sequence part 2](../evidence/assignment1/51.png)
 
 All five operations (create, list, retrieve, update, delete) completed successfully.
 
@@ -535,12 +535,12 @@ Confirms that cluster DNS resolves `backend-svc` by name from inside another Pod
 ```bash
 kubectl get pods -n dso202-assignment-01 -l tier=frontend
 ```
-![Frontend pod name](../evidence/52.png)
+![Frontend pod name](../evidence/assignment1/52.png)
 
 ```bash
 kubectl exec -n dso202-assignment-01 -it frontend-deployment-77c959b854-dmr64 -- curl -s http://backend-svc:8080/api/status
 ```
-![DNS resolution success](../evidence/53.png)
+![DNS resolution success](../evidence/assignment1/53.png)
 
 The request succeeded, confirming the frontend Pod resolved `backend-svc` via cluster DNS and reached the backend without any hardcoded IP address.
 
@@ -550,19 +550,19 @@ The request succeeded, confirming the frontend Pod resolved `backend-svc` via cl
 ```bash
 curl -s -X POST localhost:8080/api/tasks -H "Content-Type: application/json" -d '{"title":"Persistence check","description":"survives pod deletion"}'
 ```
-![Task created](../evidence/54.png)
+![Task created](../evidence/assignment1/54.png)
 
 **Step 2 — Watch Pods in a separate terminal:**
 ```bash
 kubectl get pods -n dso202-assignment-01 --watch
 ```
-![Watch terminal running](../evidence/55.png)
+![Watch terminal running](../evidence/assignment1/55.png)
 
 **Step 3 — Delete the backend Pod:**
 ```bash
 kubectl delete pod -n dso202-assignment-01 -l tier=backend
 ```
-![Pod deletion and recreation observed](../evidence/56.png)
+![Pod deletion and recreation observed](../evidence/assignment1/56.png)
 
 The watch output showed the original Pod terminate and a new Pod (a different ReplicaSet hash suffix) reach `Running`. The task created in Step 1 remained retrievable through the new Pod, confirming that the database's PersistentVolumeClaim — not the backend's ephemeral container filesystem — is what preserves data across Pod recreation. Pod lifecycle and data lifecycle are independent.
 
@@ -573,7 +573,7 @@ An initial attempt used `kubectl delete -f common-manifests/quota.yaml`, which r
 ```bash
 kubectl delete -f common-manifests/quota.yaml
 ```
-![Quota deleted](../evidence/57.png)
+![Quota deleted](../evidence/assignment1/57.png)
 
 Since that approach affects two real resources at once, a cleaner comparison was made using a throwaway ConfigMap instead, so the actual `app-config` object was never touched:
 
@@ -582,7 +582,7 @@ kubectl create configmap demo-config --from-literal=DEMO_KEY=demo-value -n dso20
 kubectl get configmap demo-config -n dso202-assignment-01 -o yaml
 kubectl delete configmap demo-config -n dso202-assignment-01
 ```
-![Imperative ConfigMap creation and cleanup](../evidence/58.png)
+![Imperative ConfigMap creation and cleanup](../evidence/assignment1/58.png)
 
 **Comparison:** the declarative approach (`kubectl apply -f`, used for every real object in this project) is repeatable and idempotent — reapplying the same file causes no unwanted side effects, and the YAML itself is a version-controlled, reviewable source of truth. The imperative approach (`kubectl create ...`) is faster for one-off or exploratory tasks, but leaves no record in version control and is harder to reproduce exactly later. In practice, declarative management is the right default for anything meant to persist or be audited; imperative commands are best reserved for quick, disposable debugging — which is exactly why this project's real resources are all defined as YAML files rather than created ad hoc.
 
