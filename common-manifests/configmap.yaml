@@ -6,12 +6,10 @@ metadata:
   labels:
     app: task-tracker
 data:
-  DB_HOST: "db-svc"
+  DB_HOST: "db-0.db-svc"
   DB_PORT: "5432"
   DB_NAME: "taskdb"
   APP_PORT: "8080"
   CORS_ORIGIN: "*"
   POSTGRES_DB: "taskdb"
-  BACKEND_URL: "http://backend-svc:8080"
-
-  
+  BACKEND_URL: "http://localhost"

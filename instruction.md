@@ -1,12 +1,28 @@
-# Assignment 2
+# Assignment 2 Implementation Guide: StatefulSet and Ingress
+
+This guide builds **directly on top of Assignment 1**. It explains what currently exists, what exactly changes and why, and gives you every manifest and command you need to implement both features.
+
+---
+
 ## Current State (Assignment 1)
 
-Before making any changes, this is what is deployed in namespace `dso202-assignment-01` on a `kind` cluster named `dso202`:
-![1](../evidence/assignment2/1.png)
+### Cluster
+
+The `kind` cluster `dso202` exists and all 3 nodes are `Ready`. However, after Docker Engine was stopped and restarted, `etcd` state was lost — the namespace `dso202-assignment-01` and every Kubernetes object inside it (Deployments, Services, ConfigMap, Secret, PVC, Pods) was wiped. See `verify.md` for a full explanation and evidence.
+
+```bash
+kind get clusters      # → dso202 (exists, 18 days old)
+kubectl get nodes      # → control-plane, worker-node-1, worker-node-2 all Ready
+kubectl get namespaces # → dso202-assignment-01 is absent
+```
+
+The cluster is healthy but completely empty. All YAML files on disk are intact.
+
+### Files on disk (Assignment 1 — what was written, nothing deployed yet)
 
 ```
 cluster/kind-cluster.yaml          ← kind cluster: 1 control-plane + 2 workers
-                                      host port 30080 → node port 30080 (only mapping)
+                                      host port 30080 only (no 80/443)
 
 common-manifests/
   namespace.yaml                   ← namespace: dso202-assignment-01
@@ -15,16 +31,16 @@ common-manifests/
   quota.yaml                       ← ResourceQuota + LimitRange
 
 database/
-  pvc.yaml                         ← PersistentVolumeClaim: db-pvc (1Gi, ReadWriteOnce)
-  deployment.yaml                  ← Deployment: db-deployment (postgres, mounts db-pvc)
-  service.yaml                     ← Headless Service: db-svc (clusterIP: None)
+  pvc.yaml                         ← PersistentVolumeClaim: db-pvc (no longer needed — StatefulSet replaces this)
+  deployment.yaml                  ← Deployment: db-deployment (no longer needed — StatefulSet replaces this)
+  service.yaml                     ← Headless Service: db-svc (kept as-is)
 
 backend/
-  deployment.yaml                  ← Deployment: backend-deployment (1 replica)
+  deployment.yaml                  ← Deployment: backend-deployment
   service.yaml                     ← ClusterIP Service: backend-svc (port 8080)
 
 frontend/
-  deployment.yaml                  ← Deployment: frontend-deployment (1 replica)
+  deployment.yaml                  ← Deployment: frontend-deployment
   service.yaml                     ← NodePort Service: frontend-svc (nodePort: 30080)
 ```
 
@@ -64,8 +80,8 @@ For PostgreSQL specifically:
 
 | Action | File |
 |---|---|
-| **Delete** | `database/deployment.yaml` (replaced by StatefulSet) |
-| **Delete** | `database/pvc.yaml` (StatefulSet manages its own PVC via `volumeClaimTemplates`) |
+| **No longer needed** | `database/deployment.yaml` — namespace is gone, nothing to delete from cluster; this file can be removed from the repo |
+| **No longer needed** | `database/pvc.yaml` — StatefulSet manages its own PVC automatically; this file can be removed from the repo |
 | **Create** | `database/statefulset.yaml` |
 | **Update** | `common-manifests/configmap.yaml` — change `DB_HOST` from `db-svc` to `db-0.db-svc` |
 | Keep as-is | `database/service.yaml` — the headless service stays; StatefulSet references it via `serviceName` |
@@ -84,7 +100,8 @@ To:
 ```yaml
   DB_HOST: "db-0.db-svc"
 ```
-Full updated file should look like this:
+
+Full updated file:
 
 ```yaml
 apiVersion: v1
@@ -104,92 +121,13 @@ data:
   BACKEND_URL: "http://backend-svc:8080"
 ```
 
-### Apply the ConfigMap change
-
-**`Check for the current configmaps`**
-
-```bash
-kubectl get configmaps -n dso202-assignment-01
-```
-![2](../evidence/assignment2/2.png)
-
-## `Assignment 1 — Namespace Loss`
-
-### What Happened
-
-After finishing Assignment 1, Docker Engine was stopped. When Docker stopped, all `kind` cluster containers (which are Docker containers) stopped too. On the next Docker start, the containers resumed but the `etcd` state inside the cluster — which stores every Kubernetes object (namespaces, pods, services, configmaps, secrets, PVCs) — was lost.
-
-**The cluster itself survived. Every Kubernetes object inside it did not.**
-
-This is expected behavior for a local `kind` cluster. `kind` is designed for development and testing, not for persisting state across Docker restarts.
-
----
-
-### Evidence
-
-### The cluster is still present and healthy (18 days old)
-
-```bash
-kind get clusters
-```
-![3](../evidence/assignment2/3.png)
-```bash
-kubectl get nodes
-```
-![4](../evidence/assignment2/4.png)
-
-### The namespace and all resources are gone
-
-```bash
-kubectl get namespaces
-```
-![5](../evidence/assignment2/5.png)
-
-`dso202-assignment-01` is absent. All objects that lived inside it (Deployments, Services, ConfigMap, Secret, PVC) are gone with it.
-
-```bash
-kubectl get all -n dso202-assignment-01
-```
-![6](../evidence/assignment2/6.png)
-```
-No resources found in dso202-assignment-01 namespace.
-```
-
----
-
-### Why the YAML Files Are Still Safe
-
-All manifests were version-controlled in this repository. The loss only affected the **live cluster state**, not the source files on disk. Every object can be re-applied from the existing YAML files at any time — which is exactly the point of the declarative, file-based approach used throughout Assignment 1.
-
-
-
-### Step 2 — First applying the namespace and supporting objects if not done yet:
-
-The namespace and all previous objects were already wiped when Docker was restarted (see `verify.md`). There is nothing to delete from the cluster — apply directly.
-
-First apply the namespace and supporting objects if not done yet:
-
-```bash
-kubectl apply -f common-manifests/namespace.yaml
-kubectl apply -f common-manifests/secret.yaml
-kubectl apply -f common-manifests/quota.yaml
-```
-![7](../evidence/assignment2/7.png)
-
-### Step 3 — Apply the ConfigMap change
-
-```bash
-kubectl apply -f common-manifests/configmap.yaml
-kubectl get configmaps -n dso202-assignment-01
-```
-![8](../evidence/assignment2/8.png)
-![9](../evidence/assignment2/9.png)
-
 > **Why `db-0.db-svc` instead of `db-svc`?**
 > `db-svc` is the headless service and still resolves to the pod IP — it would still work with 1 replica. But using `db-0.db-svc` explicitly demonstrates the StatefulSet's core feature: a stable, per-pod DNS identity that never changes regardless of rescheduling. This is what makes StatefulSets meaningful for databases.
 
-### Step 4 - Create the StatefulSet manifest
+### Step 2 — Create the StatefulSet manifest
+
 **Create file: `database/statefulset.yaml`**
+
 ```yaml
 apiVersion: apps/v1
 kind: StatefulSet
@@ -242,7 +180,7 @@ spec:
         resources:
           requests:
             storage: 1Gi
-``` 
+```
 
 **Explanation of key fields:**
 
@@ -250,19 +188,27 @@ spec:
 - `volumeClaimTemplates` — this replaces `database/pvc.yaml`. Kubernetes automatically creates a PVC named `db-storage-db-0` and binds it to the `db-0` pod. The PVC is owned by the StatefulSet and persists independently of the pod.
 - The pod spec (container image, env vars, volumeMounts) is identical to the old `deployment.yaml` — only the wrapper object type changes.
 
-**Apply the changes**
+### Step 3 — Apply the changes
+
 The namespace and all previous objects were already wiped when Docker was restarted (see `verify.md`). There is nothing to delete from the cluster — apply directly.
 
-But we have to recreate the database service first, because the StatefulSet references it via `serviceName`. The service is unchanged from Assignment 1.
+First apply the namespace and supporting objects if not done yet:
 
 ```bash
+kubectl apply -f common-manifests/namespace.yaml
+kubectl apply -f common-manifests/secret.yaml
+kubectl apply -f common-manifests/quota.yaml
+```
+
+Then apply the updated ConfigMap, headless service, and StatefulSet:
+
+```bash
+kubectl apply -f common-manifests/configmap.yaml
 kubectl apply -f database/service.yaml
 kubectl apply -f database/statefulset.yaml
 ```
-![10](../evidence/assignment2/10.png)
-![11](../evidence/assignment2/11.png)
 
-### Step 4 - final check
+### Step 4 — Verify
 
 ```bash
 # Confirm the StatefulSet is created
@@ -278,35 +224,42 @@ kubectl get pvc -n dso202-assignment-01
 kubectl get svc db-svc -n dso202-assignment-01
 kubectl get endpoints db-svc -n dso202-assignment-01
 ```
-![12](../evidence/assignment2/12.png)
 
+**Expected output:**
 
-## Redeploying the backend and frontend
+```
+NAME   READY   AGE
+db     1/1     30s
 
-### Deploy the backend
+NAME     READY   STATUS    RESTARTS   AGE
+db-0     1/1     Running   0          30s
+
+NAME                STATUS   VOLUME     CAPACITY   ACCESS MODES   STORAGECLASS   AGE
+db-storage-db-0     Bound    pvc-xxxx   1Gi        RWO            standard       30s
+```
+
+**Verify the backend can reach the database through the stable DNS name:**
 
 ```bash
-kubectl apply -f backend/deployment.yaml
-kubectl apply -f backend/service.yaml
+# Restart the backend pod so it picks up the updated DB_HOST from the ConfigMap
+kubectl rollout restart deployment backend-deployment -n dso202-assignment-01
+
+# Wait for it to come back
+kubectl rollout status deployment backend-deployment -n dso202-assignment-01
+
+# Check the backend logs — should see "db connected"
+kubectl logs -n dso202-assignment-01 -l tier=backend --tail=10
 ```
-![13](../evidence/assignment2/13.png)
-![14](../evidence/assignment2/14.png)
 
-### Deploy the frontend
+**Verify from inside the cluster:**
 
-```bash
-kubectl apply -f frontend/deployment.yaml
-kubectl apply -f frontend/service.yaml
-```
-![15](../evidence/assignment2/15.png)   
-![16](../evidence/assignment2/16.png)
-
-
-### Verify from inside the cluster:
 ```bash
 kubectl exec -n dso202-assignment-01 -it db-0 -- psql -U postgres -d taskdb -c "\dt"
 ```
-![17](../evidence/assignment2/17.png)
+
+This connects directly to the database pod using its stable ordinal name `db-0` — not a random hash suffix.
+
+---
 
 ## Part 2 — Ingress with NGINX Ingress Controller
 
@@ -400,40 +353,14 @@ nodes:
 - Added two new `extraPortMappings`: host port 80 → container port 80, host port 443 → container port 443.
 - Port 30080 is kept for backward compatibility, though after Ingress is working you won't need it.
 
-### Step 5 — Recreate the cluster and re-apply everything
-
-**Delete the existing cluster:**
-
-```bash
-kind delete cluster --name dso202
-```
-![18](../evidence/assignment2/18.png)
-
-**Create the cluster with the updated config:**
-
-```bash
-kind create cluster --config cluster/kind-cluster.yaml
-```
-![19](../evidence/assignment2/19.png)
-**Verify the new cluster has all three port mappings:**
-
-```bash
-kubectl get nodes -o wide
-docker ps --format "table {{.Names}}\t{{.Ports}}" | grep dso202
-```
-![20](../evidence/assignment2/20.png)
-![21](../evidence/assignment2/21.png)
-
-### Step 6 — Update the ConfigMap
+### Step 2 — Update the ConfigMap
 
 The frontend's `app.js` constructs API calls as:
 ```javascript
 const API = `${BACKEND_URL}/api/tasks`;
 ```
 
-With Ingress, both the frontend (`/`) and backend (`/api`) are served under the same host (`http://localhost`). Setting `BACKEND_URL` to an empty string makes API calls relative to the page origin:
-- `"" + "/api/tasks"` → `/api/tasks` → browser resolves to `http://localhost/api/tasks`
-- The Ingress routes `http://localhost/api/...` to `backend-svc:8080`
+With Ingress, both the frontend (`/`) and backend (`/api`) are served under the same host (`http://localhost`). Setting `BACKEND_URL` to `http://localhost` means API calls resolve to `http://localhost/api/tasks`, which the Ingress routes to the backend.
 
 **File: `common-manifests/configmap.yaml`** (builds on the StatefulSet update from Part 1):
 
@@ -443,38 +370,14 @@ Change:
 ```
 To:
 ```yaml
-  BACKEND_URL: ""
+  BACKEND_URL: "http://localhost"
 ```
+
+> **Why not `""`?** The frontend container's `docker-entrypoint.sh` uses `${BACKEND_URL:=http://localhost:8080}` — the `:=` shell syntax replaces the variable if it is empty OR unset. An empty string from the ConfigMap gets silently overwritten by the fallback before `envsubst` runs. Setting it to `http://localhost` is non-empty, bypasses that default, and works correctly with the Ingress.
 
 This is the fix for the long-standing limitation where the browser could not reach the backend. By routing everything through one Ingress host, the DNS problem disappears entirely.
 
-### **Step 6 - Re-apply the namespace and all supporting objects first:**
-
-```bash
-kubectl apply -f common-manifests/namespace.yaml
-kubectl apply -f common-manifests/configmap.yaml
-kubectl apply -f common-manifests/secret.yaml
-kubectl apply -f common-manifests/quota.yaml
-```
-![22](../evidence/assignment2/22.png)
-
-### **Step 7 - Re-apply the database tier (headless service + StatefulSet from Part 1):**
-
-```bash
-kubectl apply -f database/service.yaml
-kubectl apply -f database/statefulset.yaml
-```
-![23](../evidence/assignment2/23.png)
-
-### **Step 8 - Re-apply the backend tier:**
-
-```bash
-kubectl apply -f backend/deployment.yaml
-kubectl apply -f backend/service.yaml
-```
-![24](../evidence/assignment2/24.png)
-
-### Step 9 — Update the frontend Service
+### Step 3 — Update the frontend Service
 
 The frontend no longer needs to be reachable directly via `NodePort`. The Ingress controller will receive all external traffic on port 80 and route it to the frontend service. Change the service type to `ClusterIP`:
 
@@ -498,13 +401,8 @@ spec:
 ```
 
 > The `nodePort: 30080` field is removed because `ClusterIP` services are not exposed at the node level — all external traffic comes in through the Ingress.
-```bash 
-kubectl apply -f frontend/deployment.yaml
-kubectl apply -f frontend/service.yaml
-```
-![25](../evidence/assignment2/25.png)
 
-### Step 10 — Create the Ingress resource
+### Step 4 — Create the Ingress resource
 
 **Create directory and file: `ingress/ingress.yaml`**
 
@@ -545,14 +443,60 @@ spec:
 - `path: /api` with `pathType: Prefix` — any request whose URL path starts with `/api` (e.g. `/api/tasks`, `/api/status`) is forwarded to `backend-svc:8080`. The path is forwarded as-is, which is correct because the Express backend handles routes at `/api/tasks` (not `/tasks`).
 - `path: /` with `pathType: Prefix` — everything else (including `/`, `/index.html`, `/styles.css`, `/app.js`) goes to `frontend-svc:8080`.
 
-**Apply the Ingress resource:**
+### Step 5 — Recreate the cluster and re-apply everything
+
+**Delete the existing cluster:**
 
 ```bash
-kubectl apply -f ingress/ingress.yaml
+kind delete cluster --name dso202
 ```
-![30](../evidence/assignment2/30.png)
 
-### **Step 11 - Redeploy frontend and backend once to pick up the updated ConfigMap:**
+**Create the cluster with the updated config:**
+
+```bash
+kind create cluster --config cluster/kind-cluster.yaml
+```
+
+**Verify the new cluster has all three port mappings:**
+
+```bash
+kubectl get nodes -o wide
+docker ps --format "table {{.Names}}\t{{.Ports}}" | grep dso202
+```
+
+You should see ports `80`, `443`, and `30080` all mapped on the `dso202-control-plane` container.
+
+**Re-apply the namespace and all supporting objects first:**
+
+```bash
+kubectl apply -f common-manifests/namespace.yaml
+kubectl apply -f common-manifests/configmap.yaml
+kubectl apply -f common-manifests/secret.yaml
+kubectl apply -f common-manifests/quota.yaml
+```
+
+**Re-apply the database tier (headless service + StatefulSet from Part 1):**
+
+```bash
+kubectl apply -f database/service.yaml
+kubectl apply -f database/statefulset.yaml
+```
+
+**Re-apply the backend tier:**
+
+```bash
+kubectl apply -f backend/deployment.yaml
+kubectl apply -f backend/service.yaml
+```
+
+**Re-apply the frontend tier (now with ClusterIP service):**
+
+```bash
+kubectl apply -f frontend/deployment.yaml
+kubectl apply -f frontend/service.yaml
+```
+
+**Redeploy frontend and backend once to pick up the updated ConfigMap:**
 
 `BACKEND_URL` is not read at runtime — it is baked into `config.js` by the container's entrypoint script (`envsubst`) at the moment the pod starts. If a pod was already running before the ConfigMap was updated, it will still have the old value. A rollout restart forces both pods to restart and re-read the current ConfigMap.
 
@@ -560,7 +504,6 @@ kubectl apply -f ingress/ingress.yaml
 kubectl rollout restart deployment frontend-deployment -n dso202-assignment-01
 kubectl rollout restart deployment backend-deployment -n dso202-assignment-01
 ```
-![26](../evidence/assignment2/26.png)
 
 Wait for both to finish before applying the Ingress:
 
@@ -568,7 +511,6 @@ Wait for both to finish before applying the Ingress:
 kubectl rollout status deployment frontend-deployment -n dso202-assignment-01
 kubectl rollout status deployment backend-deployment -n dso202-assignment-01
 ```
-![27](../evidence/assignment2/27.png)
 
 Confirm the frontend picked up `BACKEND_URL: ""`:
 
@@ -579,23 +521,12 @@ kubectl exec -n dso202-assignment-01 \
 ```
 
 Expected: `BACKEND_URL: ""`
-![28](../evidence/assignment2/28.png)
 
-### **Install the NGINX Ingress Controller (kind-specific manifest):**
+**Install the NGINX Ingress Controller (kind-specific manifest):**
+
 ```bash
 kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/main/deploy/static/provider/kind/deploy.yaml
 ```
-![29](../evidence/assignment2/29.png)
-
-this creates ingress pods in the `ingress-nginx` namespace. 
-
-Why a Separate Namespace
-
-The Ingress Controller is cluster infrastructure, not your application. It watches Ingress objects across all namespaces in the cluster — including your dso202-assignment-01 — and programs NGINX routing rules for all of them. Putting it in its own namespace keeps it isolated from your app.
-
-The controller pod lives in ingress-nginx but it has ClusterRole permissions to read Ingress objects from every namespace. When you apply ingress/ingress.yaml in dso202-assignment-01, the controller picks it up and starts routing accordingly.
-
-
 
 Wait for the Ingress Controller pod to be fully ready before continuing:
 
@@ -605,14 +536,14 @@ kubectl wait --namespace ingress-nginx \
   --selector=app.kubernetes.io/component=controller \
   --timeout=90s
 ```
-![31](../evidence/assignment2/31.png)
 
 **Apply the Ingress resource:**
 
 ```bash
 kubectl apply -f ingress/ingress.yaml
 ```
-![30](../evidence/assignment2/30.png)
+
+### Step 6 — Verify
 
 **Check all objects are in place:**
 
@@ -620,19 +551,170 @@ kubectl apply -f ingress/ingress.yaml
 kubectl get all -n dso202-assignment-01
 kubectl get ingress -n dso202-assignment-01
 ```
-![32](../evidence/assignment2/32.png)
 
 **Check the Ingress has been assigned an address:**
 
 ```bash
 kubectl describe ingress task-tracker-ingress -n dso202-assignment-01
 ```
-![33](../evidence/assignment2/33.png)
+
+Expected output includes:
+```
+Rules:
+  Host        Path  Backends
+  ----        ----  --------
+  *
+              /api   backend-svc:8080
+              /      frontend-svc:8080
+```
 
 **Test the backend API through the Ingress:**
 
 ```bash
 curl -s http://localhost/api/status
 ```
-![34](../evidence/assignment2/34.png)
-![35](../evidence/assignment2/35.png)
+
+Expected: `{"status":"ok","db":"connected"}`
+
+**Test a full CRUD cycle through the Ingress:**
+
+```bash
+# Create a task
+curl -s -X POST http://localhost/api/tasks \
+  -H "Content-Type: application/json" \
+  -d '{"title":"Ingress test","description":"routed via nginx ingress"}'
+
+# List tasks
+curl -s http://localhost/api/tasks
+```
+
+**Test the frontend through the Ingress:**
+
+Open `http://localhost` in a browser. The Task Tracker UI should load, and the status pill should show `backend + db online` — this confirms that browser JavaScript can now call the backend API, because both are served under the same origin (`http://localhost`).
+
+---
+
+## Full Picture: Before and After
+
+### Repository structure after both changes
+
+```
+cluster/kind-cluster.yaml          ← UPDATED: added port 80/443 mappings + ingress-ready label
+
+common-manifests/
+  namespace.yaml                   ← unchanged
+  configmap.yaml                   ← UPDATED: DB_HOST="db-0.db-svc", BACKEND_URL=""
+  secret.yaml                      ← unchanged
+  quota.yaml                       ← unchanged
+
+database/
+  pvc.yaml                         ← DELETED (StatefulSet manages PVC automatically)
+  deployment.yaml                  ← DELETED (replaced by StatefulSet)
+  statefulset.yaml                 ← NEW
+  service.yaml                     ← unchanged (headless service, db-svc)
+
+backend/
+  deployment.yaml                  ← unchanged
+  service.yaml                     ← unchanged (ClusterIP, port 8080)
+
+frontend/
+  deployment.yaml                  ← unchanged
+  service.yaml                     ← UPDATED: NodePort → ClusterIP (no nodePort field)
+
+ingress/
+  ingress.yaml                     ← NEW
+```
+
+### Traffic flow comparison
+
+**Assignment 1:**
+```
+Browser → localhost:30080 → [NodePort] → frontend pod (nginx)
+Browser → localhost:8080  → [port-forward] → backend pod  (curl only, not browser)
+Backend → db-svc:5432     → [Headless Service] → db-deployment-7fd9-xxxx pod
+```
+
+**Assignment 2:**
+```
+Browser → localhost:80 → [NGINX Ingress] → /     → frontend pod (nginx)
+                                          → /api  → backend pod (Express)
+Backend → db-0.db-svc:5432 → [Headless Service] → db-0 pod (stable identity)
+```
+
+### Summary of what each change demonstrates
+
+| Change | Unit 2 topic demonstrated |
+|---|---|
+| `Deployment` → `StatefulSet` for the database | 2.1 StatefulSets — stable pod identity, ordered lifecycle |
+| `volumeClaimTemplates` replaces separate `pvc.yaml` | 2.1.4 Volume claim templates |
+| Pod named `db-0`, addressable as `db-0.db-svc` | 2.1.2.1 Stable network identities |
+| `serviceName: "db-svc"` references existing headless service | 2.1.3 Headless services for StatefulSets |
+| NGINX Ingress Controller installed on kind cluster | 2.2.2.1 NGINX Ingress Controller |
+| `Ingress` resource with `/api` and `/` routing rules | 2.2.1.1 Basic routing rules |
+| `ingressClassName: nginx` annotation | 2.2.3 Ingress annotations for controller-specific features |
+| `BACKEND_URL=""` so browser JS works without port-forward | Solves the Assignment 1 Task 7a browser limitation |
+
+---
+
+## Troubleshooting
+
+### StatefulSet pod stuck in `Pending`
+
+```bash
+kubectl describe pod db-0 -n dso202-assignment-01
+```
+
+Common cause: the quota from `quota.yaml` was applied but the new pod has no resource requests. Confirm `quota.yaml` is applied and the LimitRange is active — it auto-injects default requests onto containers that don't declare them.
+
+### Backend shows `ENOTFOUND db-0.db-svc`
+
+The StatefulSet pod must be `Running` before the backend can resolve `db-0.db-svc`. Check:
+
+```bash
+kubectl get pod db-0 -n dso202-assignment-01
+```
+
+If the pod is not yet `Running`, wait and then restart the backend:
+
+```bash
+kubectl rollout restart deployment backend-deployment -n dso202-assignment-01
+```
+
+### Ingress returns 404 for `/api`
+
+Check that the Ingress controller is running and the Ingress object has an address:
+
+```bash
+kubectl get pods -n ingress-nginx
+kubectl get ingress task-tracker-ingress -n dso202-assignment-01
+```
+
+If `ADDRESS` is blank, the controller pod is not yet ready. Re-run the `kubectl wait` command from Step 5.
+
+### `curl http://localhost/api/status` returns `connection refused`
+
+The cluster was not recreated with the new port mappings. Verify:
+
+```bash
+docker ps --format "table {{.Names}}\t{{.Ports}}" | grep dso202
+```
+
+You must see `:80->80/tcp` in the control-plane container's port column. If not, the cluster needs to be deleted and recreated with the updated `kind-cluster.yaml`.
+
+### Browser shows `backend unreachable` in the status pill
+
+Check that the frontend pod picked up the new `BACKEND_URL=""` from the ConfigMap:
+
+```bash
+kubectl exec -n dso202-assignment-01 -it \
+  $(kubectl get pod -n dso202-assignment-01 -l tier=frontend -o jsonpath='{.items[0].metadata.name}') \
+  -- cat /usr/share/nginx/html/config.js
+```
+
+Expected: `BACKEND_URL: ""`
+
+If it shows the old value, restart the frontend deployment to force the ConfigMap to be re-read:
+
+```bash
+kubectl rollout restart deployment frontend-deployment -n dso202-assignment-01
+```

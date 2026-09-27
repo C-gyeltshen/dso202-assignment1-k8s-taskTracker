@@ -6,11 +6,9 @@ metadata:
   labels:
     tier: frontend
 spec:
-  type: NodePort
+  type: ClusterIP
   selector:
     tier: frontend
   ports:
     - port: 8080
       targetPort: 8080
-      nodePort: 30080
-      
